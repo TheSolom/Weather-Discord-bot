@@ -1,45 +1,27 @@
 import { Client, Collection, Events, GatewayIntentBits } from "discord.js";
-import config from "../config.json" assert { type: "json" };
 
+import { clientReadyHandler } from "./events/clientReady.js";
+import { interactionCreateHandler } from "./events/interactionCreate.js";
 import pingCommand from "./commands/utility/ping.js";
+import serverCommand from "./commands/utility/server.js";
+import userCommand from "./commands/utility/user.js";
 
-const { token } = config;
-
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
+});
 
 client.commands = new Collection();
 
-// client.commands.set(pingCommand.data.name, pingCommand);
+client.commands.set(pingCommand.data.name, pingCommand);
+client.commands.set(serverCommand.data.name, serverCommand);
+client.commands.set(userCommand.data.name, userCommand);
 
-client.once(Events.ClientReady, (readyClient) => {
-  console.log(`Ready! Logged in as ${readyClient.user.tag}`);
-});
+client.once(Events.ClientReady, clientReadyHandler);
 
-client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-  const command = interaction.client.commands.get(interaction.commandName);
+client.on(Events.InteractionCreate, interactionCreateHandler);
 
-  if (!command) {
-    console.error(`No command matching ${interaction.commandName} was found.`);
-    return;
-  }
-
-  try {
-    await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({
-        content: "There was an error while executing this command!",
-        ephemeral: true,
-      });
-    } else {
-      await interaction.reply({
-        content: "There was an error while executing this command!",
-        ephemeral: true,
-      });
-    }
-  }
-});
-
-client.login(token);
+client.login(process.env.DISCORD_TOKEN);
